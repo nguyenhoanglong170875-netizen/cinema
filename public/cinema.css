@@ -1,0 +1,372 @@
+/* ====================================================================
+   CINEMAX PREMIER - VINTAGE CINEMA LUXURY DESIGN SYSTEM
+   Hollywood Golden Age • Art Deco • Warm Nostalgic Palette
+   ==================================================================== */
+
+:root {
+  --vintage-noir: #0C0A08;
+  --vintage-espresso: #14100D;
+  --vintage-walnut: #1B1713;
+  --vintage-card: #221D17;
+  --vintage-wine: #8E1E24;
+  --vintage-curtain: #B3262E;
+  --vintage-gold: #D4AF37;
+  --vintage-brass: #C5A059;
+  --vintage-amber: #E5A84B;
+  --vintage-cream: #F6ECE1;
+  --vintage-parchment: #EAE0D5;
+  --vintage-muted: #A8998A;
+  --vintage-border: rgba(212, 175, 55, 0.18);
+}
+
+/* Custom Vintage Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0C0A08;
+}
+::-webkit-scrollbar-thumb {
+  background: #2D251D;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8E1E24;
+}
+
+/* Vintage Film Atmosphere */
+.cinema-bg {
+  background-color: #0C0A08;
+  background-image: 
+    radial-gradient(circle at 15% 10%, rgba(142, 30, 36, 0.14) 0%, transparent 45%),
+    radial-gradient(circle at 85% 25%, rgba(212, 175, 55, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 50% 85%, rgba(179, 38, 46, 0.08) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Film Grain Texture Effect */
+.cinema-bg::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  z-index: 999;
+}
+
+/* Glassmorphism Classes with Antique Warm Tone */
+.glass-panel {
+  background: rgba(26, 22, 18, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(212, 175, 55, 0.16);
+}
+
+.glass-nav {
+  background: rgba(14, 12, 10, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+}
+
+.glass-card {
+  background: rgba(32, 27, 22, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(212, 175, 55, 0.14);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(212, 175, 55, 0.5);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.9), 0 0 25px -5px rgba(212, 175, 55, 0.2);
+}
+
+/* Warm Gold & Wine Glow Elements */
+.glow-gold {
+  box-shadow: 0 0 25px rgba(212, 175, 55, 0.35);
+}
+
+.glow-wine {
+  box-shadow: 0 0 25px rgba(142, 30, 36, 0.5);
+}
+
+.glow-wine-hover:hover {
+  box-shadow: 0 0 32px rgba(142, 30, 36, 0.7);
+}
+
+/* Vintage Button Styling */
+.btn-vintage-wine {
+  background: linear-gradient(135deg, #A8242B, #78151A);
+  color: #F6ECE1;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  box-shadow: 0 4px 15px rgba(142, 30, 36, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transition: all 0.25s ease;
+}
+
+.btn-vintage-wine:hover {
+  background: linear-gradient(135deg, #BD2B33, #8E1E24);
+  border-color: #D4AF37;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(142, 30, 36, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.btn-vintage-gold {
+  background: linear-gradient(135deg, #E5B869, #C59B4B);
+  color: #120F0D;
+  font-weight: 800;
+  border: 1px solid #D4AF37;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+  transition: all 0.25s ease;
+}
+
+.btn-vintage-gold:hover {
+  background: linear-gradient(135deg, #F0C67E, #D4AF37);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(212, 175, 55, 0.5);
+}
+
+/* ====================================================================
+   VINTAGE WARM PROJECTOR SCREEN & TUNGSTEN LIGHT BEAM
+   ==================================================================== */
+.imax-screen-curve {
+  position: relative;
+  height: 22px;
+  width: 82%;
+  max-width: 680px;
+  margin: 0 auto;
+  border-top: 4px solid #D4AF37;
+  border-radius: 50% / 14px;
+  box-shadow: 0 -6px 25px rgba(212, 175, 55, 0.6), 0 0 50px rgba(229, 168, 75, 0.3);
+}
+
+.imax-projector-ray {
+  position: absolute;
+  top: 100%;
+  left: 6%;
+  right: 6%;
+  height: 120px;
+  background: radial-gradient(ellipse at top, rgba(229, 168, 75, 0.16) 0%, rgba(142, 30, 36, 0.05) 50%, transparent 75%);
+  pointer-events: none;
+  filter: blur(14px);
+}
+
+/* ====================================================================
+   VINTAGE VELVET CINEMA CHAIRS (HOLLYWOOD THEATER SEATS)
+   ==================================================================== */
+.cinema-seat-btn {
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.cinema-seat-btn:not(.booked):hover {
+  transform: scale(1.12) translateY(-2px);
+  z-index: 10;
+}
+
+/* Cushion shape */
+.seat-cushion {
+  width: 100%;
+  height: 38px;
+  border-radius: 8px 8px 4px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.12), 0 4px 10px rgba(0, 0, 0, 0.6);
+}
+
+/* Headrest accent */
+.seat-cushion::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  width: 65%;
+  height: 6px;
+  border-radius: 4px;
+  background: inherit;
+  filter: brightness(1.25);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+/* Brass Armrests */
+.seat-cushion::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: -2px;
+  right: -2px;
+  height: 4px;
+  border-radius: 2px;
+  background: #3B2E20;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+/* Standard Seat: Dark Charcoal Corduroy */
+.seat-standard .seat-cushion {
+  background: #241E18;
+  border: 1.5px solid #4A3E31;
+  color: #B8A898;
+}
+.seat-standard:hover .seat-cushion {
+  border-color: #D4AF37;
+  color: #F6ECE1;
+}
+
+/* VIP Seat: Royal Velvet Burgundy */
+.seat-vip .seat-cushion {
+  background: linear-gradient(180deg, #4A1215, #2B0A0C);
+  border: 1.5px solid #D4AF37;
+  color: #F7D0D3;
+}
+.seat-vip:hover .seat-cushion {
+  box-shadow: 0 0 18px rgba(212, 175, 55, 0.5);
+  color: #fff;
+}
+
+/* Sweetbox Couple: Velvet Mulberry Loge */
+.seat-couple .seat-cushion {
+  background: linear-gradient(180deg, #42182B, #260A17);
+  border: 1.5px solid #C08497;
+  color: #F3DDE5;
+  width: 100%;
+}
+.seat-couple:hover .seat-cushion {
+  box-shadow: 0 0 20px rgba(192, 132, 151, 0.6);
+  color: #fff;
+}
+
+/* Selected State: Warm Brass Gold */
+.seat-selected .seat-cushion {
+  background: linear-gradient(180deg, #F0C67E, #C59B4B) !important;
+  border-color: #FCD34D !important;
+  color: #120F0D !important;
+  font-weight: 800;
+  box-shadow: 0 0 22px rgba(212, 175, 55, 0.85) !important;
+  transform: scale(1.08);
+}
+
+/* Holding State */
+.seat-holding .seat-cushion {
+  background: #E5A84B !important;
+  border-color: #FCD34D !important;
+  color: #120F0D !important;
+  animation: seatPulseHold 1s infinite alternate;
+}
+
+/* Booked State */
+.seat-booked .seat-cushion {
+  background: #171310 !important;
+  border: 1px solid #2B231B !important;
+  color: #5C4F42 !important;
+  opacity: 0.45;
+  cursor: not-allowed !important;
+}
+
+@keyframes seatPulseHold {
+  from { opacity: 0.6; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1.02); }
+}
+
+/* ============================================================= */
+/* VINTAGE LETTERPRESS CINEMA TICKET (AGED KRAFT & GOLD FOIL)    */
+/* ============================================================= */
+.vintage-ticket-container {
+  background: linear-gradient(135deg, #221C16 0%, #2D251D 50%, #1A1612 100%);
+  border: 1.5px solid rgba(212, 175, 55, 0.35);
+  border-radius: 18px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.85);
+  transition: all 0.4s ease;
+}
+
+.vintage-ticket-container:hover {
+  transform: translateY(-5px);
+  border-color: #D4AF37;
+  box-shadow: 0 25px 60px -15px rgba(212, 175, 55, 0.25);
+}
+
+.vintage-ticket-container::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(
+    90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.04), 
+    rgba(212, 175, 55, 0.12), 
+    rgba(179, 38, 46, 0.08), 
+    transparent
+  );
+  transform: skewX(-25deg);
+  transition: 0.8s;
+  pointer-events: none;
+}
+
+.vintage-ticket-container:hover::before {
+  left: 200%;
+}
+
+/* Ticket Perforations */
+.ticket-notch-top {
+  position: absolute;
+  top: -12px;
+  right: 130px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #0C0A08;
+  border-bottom: 1.5px solid rgba(212, 175, 55, 0.3);
+  z-index: 5;
+}
+
+.ticket-notch-bottom {
+  position: absolute;
+  bottom: -12px;
+  right: 130px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #0C0A08;
+  border-top: 1.5px solid rgba(212, 175, 55, 0.3);
+  z-index: 5;
+}
+
+.ticket-dashed-line {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  right: 141px;
+  width: 1px;
+  border-left: 2px dashed rgba(212, 175, 55, 0.3);
+}
+
+/* Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .vintage-ticket-container, .vintage-ticket-container * {
+    visibility: visible;
+  }
+  .vintage-ticket-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    color: #000 !important;
+    background: #fff !important;
+    border: 2px solid #000 !important;
+  }
+}

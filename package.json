@@ -1,0 +1,14 @@
+{
+  "name": "hqtcsdl",
+  "version": "1.0.0",
+  "description": "Dự án mô phỏng và xử lý **5 xung đột / tranh chấp dữ liệu kinh điển** trong Hệ Quản Trị Cơ Sở Dữ Liệu (**SQL Server**) ứng dụng vào bài toán **Hệ thống Đặt vé xem phim**.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

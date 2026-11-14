@@ -447,6 +447,9 @@ function CineMaxApp() {
   const [dualIsFixed, setDualIsFixed] = useState(true);
   const [dualRunningPreset, setDualRunningPreset] = useState(false);
   const [dualSelectedScenario, setDualSelectedScenario] = useState('free');
+  const [dualSimulateTwoCursors, setDualSimulateTwoCursors] = useState(false);
+  const [dualMirrorCursor, setDualMirrorCursor] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const [dualT1, setDualT1] = useState({
     user: 'Nguyễn Hoàng Long',
@@ -481,6 +484,54 @@ function CineMaxApp() {
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
     setDualTimeline(prev => [{ time: timeStr, source, text }, ...prev.slice(0, 49)]);
+  };
+
+  // Keyboard listener for T2 (Space = Hold Seat, 1..4 = Actions)
+  useEffect(() => {
+    if (currentTab !== 'dual') return;
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        handleDualHoldSeats('T2');
+      } else if (e.key === '1') {
+        handleDualBeginTran('T2');
+      } else if (e.key === '2') {
+        handleDualHoldSeats('T2');
+      } else if (e.key === '3') {
+        handleDualCommit('T2');
+      } else if (e.key === '4') {
+        handleDualRollback('T2');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentTab, dualSeats, dualT1, dualT2, dualIsFixed]);
+
+  const handleMouseMoveDual = (e) => {
+    if (!dualMirrorCursor) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  const handleDualSimultaneousHold = async () => {
+    sound.play('beep');
+    setDualSimulateTwoCursors(true);
+    addDualTimeline('SQL_ENGINE', '⚡ [RACE CONDITION] Hai con chuột T1 và T2 cùng click tranh ghế tại cùng một mili-giây (09:00:00.000)!');
+    
+    await new Promise(r => setTimeout(r, 450));
+    
+    // Auto-begin if idle
+    if (dualT1.status === 'IDLE') handleDualBeginTran('T1');
+    if (dualT2.status === 'IDLE') handleDualBeginTran('T2');
+    
+    await new Promise(r => setTimeout(r, 350));
+    
+    // Both hold seats simultaneously
+    handleDualHoldSeats('T1');
+    handleDualHoldSeats('T2');
+    
+    setTimeout(() => setDualSimulateTwoCursors(false), 1200);
   };
 
   const handleDualReset = () => {
@@ -3156,6 +3207,56 @@ function CineMaxApp() {
             </div>
           </div>
 
+          {/* DUAL CURSOR CONTROLLER & SIMULTANEOUS RACE TRIGGER */}
+          <div className="glass-panel p-4 sm:p-5 rounded-2xl border-2 border-[#D4AF37]/40 mb-8 bg-gradient-to-r from-[#2B1B10]/70 via-[#1C1713] to-[#2B1216]/70 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#E5A84B] to-[#8E1E24] flex items-center justify-center text-2xl shadow-lg shadow-[#8E1E24]/30 animate-pulse">
+                🖱️
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono font-bold text-[#E5A84B] uppercase tracking-wider">
+                    ⚡ BỘ ĐIỀU KHIỂN 2 CON CHUỘT ĐỒNG THỜI
+                  </span>
+                  <span className="bg-[#14100D] text-emerald-400 border border-emerald-500/40 text-[10px] font-mono px-2 py-0.2 rounded font-bold">
+                    RACE CONDITION
+                  </span>
+                </div>
+                <h4 className="font-cinzel font-black text-sm sm:text-base text-[#F6ECE1] mt-0.5">
+                  Bấm Cùng Lúc 2 Bên (Hoặc Dùng 2 Tay: Chuột + Phím Space)
+                </h4>
+                <p className="text-[#A8998A] text-xs mt-0.5">
+                  • <strong>Tay phải:</strong> Dùng chuột click T1 &nbsp;|&nbsp; • <strong>Tay trái:</strong> Bấm phím <kbd className="px-1.5 py-0.5 bg-[#14100D] border border-[#D4AF37]/40 rounded font-mono text-[#E5A84B] font-bold">SPACE</kbd> để T2 click cùng một tích tắc!
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Toggle Mirror Cursor */}
+              <button
+                onClick={() => {
+                  sound.play('click');
+                  setDualMirrorCursor(!dualMirrorCursor);
+                }}
+                className={`px-4 py-2.5 rounded-full text-xs font-mono font-bold border transition-all flex items-center gap-1.5 ${dualMirrorCursor ? 'bg-[#D4AF37] text-[#120F0D] border-[#D4AF37] shadow-md shadow-[#D4AF37]/30' : 'bg-[#181410] text-[#B8A898] border-[#3A3026] hover:border-[#D4AF37]/40'}`}
+                title="Bật con chuột ảo thứ hai tự động di chuyển đồng bộ"
+              >
+                <span>{dualMirrorCursor ? '🟢' : '⚪'}</span>
+                <span>Chuột Ảo Đối Xứng</span>
+              </button>
+
+              {/* Instant Simultaneous Trigger Button */}
+              <button
+                onClick={handleDualSimultaneousHold}
+                disabled={dualSimulateTwoCursors}
+                className="bg-gradient-to-r from-[#E5A84B] via-[#D4AF37] to-[#8E1E24] hover:brightness-110 text-[#120F0D] font-cinzel font-black text-xs sm:text-sm px-6 py-3 rounded-full shadow-lg shadow-[#D4AF37]/30 transition-all flex items-center gap-2 transform active:scale-95 disabled:opacity-50"
+              >
+                <span className="text-base">⚡</span>
+                <span>{dualSimulateTwoCursors ? '⏳ ĐANG CLICK CÙNG LÚC...' : 'BẤM CẢ 2 CHUỘT CÙNG LÚC!'}</span>
+              </button>
+            </div>
+          </div>
+
           {/* SIDE-BY-SIDE DUAL SESSIONS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* ========================================================= */}
@@ -3257,10 +3358,12 @@ function CineMaxApp() {
 
                   <button
                     onClick={() => handleDualHoldSeats('T1')}
-                    className="bg-[#3D2510] hover:bg-[#523216] text-[#F6ECE1] font-cinzel font-bold text-xs p-2.5 rounded-xl border border-[#E5A84B] transition-all flex flex-col items-center justify-center gap-1 shadow-md shadow-[#E5A84B]/20"
+                    className="bg-[#3D2510] hover:bg-[#523216] text-[#F6ECE1] font-cinzel font-bold text-xs p-2.5 rounded-xl border border-[#E5A84B] transition-all flex flex-col items-center justify-center gap-0.5 shadow-md shadow-[#E5A84B]/20"
+                    title="Dùng chuột click nút này"
                   >
                     <span className="text-sm">🔒</span>
                     <span>2. GIỮ GHẾ</span>
+                    <span className="text-[9px] font-mono text-[#E5A84B] font-bold">[Chuột Trái]</span>
                   </button>
 
                   <button
@@ -3406,10 +3509,12 @@ function CineMaxApp() {
 
                   <button
                     onClick={() => handleDualHoldSeats('T2')}
-                    className="bg-[#4A1215] hover:bg-[#66181D] text-[#F6ECE1] font-cinzel font-bold text-xs p-2.5 rounded-xl border border-[#B3262E] transition-all flex flex-col items-center justify-center gap-1 shadow-md shadow-[#B3262E]/25"
+                    className="bg-[#4A1215] hover:bg-[#66181D] text-[#F6ECE1] font-cinzel font-bold text-xs p-2.5 rounded-xl border border-[#B3262E] transition-all flex flex-col items-center justify-center gap-0.5 shadow-md shadow-[#B3262E]/25"
+                    title="Dùng chuột click hoặc bấm phím SPACE"
                   >
                     <span className="text-sm">🔒</span>
                     <span>2. TRANH MUA</span>
+                    <span className="text-[9px] font-mono text-emerald-400 font-bold">[Phím SPACE]</span>
                   </button>
 
                   <button

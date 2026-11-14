@@ -447,6 +447,8 @@ function CineMaxApp() {
   const [dualIsFixed, setDualIsFixed] = useState(true);
   const [dualRunningPreset, setDualRunningPreset] = useState(false);
   const [dualSelectedScenario, setDualSelectedScenario] = useState('free');
+  const [hoveredDualSeat, setHoveredDualSeat] = useState('B01');
+  const [dualClickEffect, setDualClickEffect] = useState(false);
   const [dualSimulateTwoCursors, setDualSimulateTwoCursors] = useState(false);
   const [dualMirrorCursor, setDualMirrorCursor] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -532,6 +534,77 @@ function CineMaxApp() {
     handleDualHoldSeats('T2');
     
     setTimeout(() => setDualSimulateTwoCursors(false), 1200);
+  };
+
+  // LÀM LIỀN: Tranh chấp tức thì không delay
+  const handleDualInstantRace = (seatCode = 'B01') => {
+    sound.play('beep');
+    setDualClickEffect(true);
+    setTimeout(() => setDualClickEffect(false), 600);
+
+    setHoveredDualSeat(seatCode);
+
+    if (dualIsFixed) {
+      // ĐÃ SỬA: T1 giữ UPDLOCK, T2 bị BLOCKED
+      setDualSeats(prev => prev.map(s => {
+        if (s.soGhe === seatCode) {
+          return { ...s, trangThai: 'DANG_GIU', holder: 'T1', lockType: 'UPDLOCK' };
+        }
+        return s;
+      }));
+
+      setDualT1(prev => ({
+        ...prev,
+        status: 'ACTIVE',
+        selectedSeats: [seatCode],
+        heldSeats: [seatCode],
+        alert: `🔒 Khách A (T1) đã giữ thành công ghế ${seatCode} với khóa UPDLOCK!`,
+        alertType: 'success',
+        logs: [`SELECT * FROM Ghe WITH (UPDLOCK, ROWLOCK) WHERE MaGhe = '${seatCode}'; -- THÀNH CÔNG`, ...prev.logs]
+      }));
+
+      setDualT2(prev => ({
+        ...prev,
+        status: 'ACTIVE',
+        selectedSeats: [seatCode],
+        heldSeats: [],
+        alert: `⏳ BLOCKED! Ghế ${seatCode} đang bị T1 giữ khóa UPDLOCK. SQL Server bắt T2 phải CHỜ T1 Commit hoặc Rollback!`,
+        alertType: 'warning',
+        logs: [`BLOCKED: Chờ khóa RID trên ghế ${seatCode} (do T1 nắm giữ)...`, ...prev.logs]
+      }));
+
+      addDualTimeline('SQL_ENGINE', `⚡ [LÀM LIỀN] Cả 2 cùng tranh ghế ${seatCode}: T1 giữ UPDLOCK -> T2 BỊ CHẶN (BLOCKED)!`);
+    } else {
+      // CHƯA SỬA: Lost Update ghi đè
+      setDualSeats(prev => prev.map(s => {
+        if (s.soGhe === seatCode) {
+          return { ...s, trangThai: 'DANG_GIU', holder: 'T2', lockType: 'NONE' };
+        }
+        return s;
+      }));
+
+      setDualT1(prev => ({
+        ...prev,
+        status: 'ACTIVE',
+        selectedSeats: [seatCode],
+        heldSeats: [seatCode],
+        alert: `⚠️ Khách A vừa giữ ghế ${seatCode} nhưng bị Khách B ghi đè!`,
+        alertType: 'warning',
+        logs: [`UPDATE Ghe SET ... MaKH='T1'; -- BỊ T2 GHI ĐÈ!`, ...prev.logs]
+      }));
+
+      setDualT2(prev => ({
+        ...prev,
+        status: 'ACTIVE',
+        selectedSeats: [seatCode],
+        heldSeats: [seatCode],
+        alert: `💥 XUNG ĐỘT (LOST UPDATE)! T2 đã GHI ĐÈ lên ghế ${seatCode} của T1 do thiếu cơ chế khóa!`,
+        alertType: 'error',
+        logs: [`UPDATE Ghe SET ... MaKH='T2'; -- GHI ĐÈ LÊN T1 THÀNH CÔNG (MẤT DỮ LIỆU T1)`, ...prev.logs]
+      }));
+
+      addDualTimeline('SQL_ENGINE', `💥 [LỖI LOST UPDATE] Cả 2 cùng bấm: T2 ghi đè lên ghế ${seatCode} của T1!`);
+    }
   };
 
   const handleDualReset = () => {
@@ -3207,7 +3280,69 @@ function CineMaxApp() {
             </div>
           </div>
 
-          {/* DUAL CURSOR CONTROLLER & SIMULTANEOUS RACE TRIGGER */}
+          {/* BỘ NÚT LÀM LIỀN & 2 CON CHUỘT TRỰC QUAN */}
+          <div className="glass-panel p-5 sm:p-6 rounded-2xl border-2 border-[#D4AF37] mb-8 bg-gradient-to-r from-[#2A180E] via-[#1C1713] to-[#2B1014] shadow-2xl">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-4 pb-4 border-b border-[#D4AF37]/25">
+              <div className="flex items-center gap-3">
+                <div className="flex -space-x-2">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-black font-black flex items-center justify-center text-lg shadow-lg border-2 border-[#120F0D]">
+                    🖱️
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-rose-600 text-white font-black flex items-center justify-center text-lg shadow-lg border-2 border-[#120F0D]">
+                    🖱️
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-[#E5A84B] uppercase tracking-wider">
+                      ⚡ CHẾ ĐỘ 2 CON CHUỘT BẤM SONG SONG (LÀM LIỀN)
+                    </span>
+                    <span className="bg-[#120F0D] text-[#D4AF37] border border-[#D4AF37]/50 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
+                      ACTIVE
+                    </span>
+                  </div>
+                  <h3 className="font-cinzel font-black text-base sm:text-lg text-[#F6ECE1] mt-0.5">
+                    Click Bất Kỳ Ghế Nào → Cả 2 Con Chuột Cùng Bấm Tranh Ghế Đó Tức Thì!
+                  </h3>
+                </div>
+              </div>
+
+              {/* Status Indicator */}
+              <div className="flex items-center gap-2 bg-[#120F0D] px-4 py-2 rounded-xl border border-[#3A3026] text-xs font-mono">
+                <span className="text-[#A8998A]">Đang nhắm ghế:</span>
+                <span className="text-[#E5A84B] font-black text-sm bg-[#2B2015] px-2.5 py-0.5 rounded border border-[#E5A84B]/40">
+                  {hoveredDualSeat}
+                </span>
+              </div>
+            </div>
+
+            {/* Quick 1-Click Action Buttons (LÀM LIỀN) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                onClick={() => handleDualInstantRace(hoveredDualSeat)}
+                className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:brightness-110 text-black font-cinzel font-black text-xs sm:text-sm p-3.5 rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 transform active:scale-95"
+              >
+                <span className="text-lg animate-bounce">⚡</span>
+                <span>TRANH GHẾ {hoveredDualSeat} (LÀM LIỀN)</span>
+              </button>
+
+              <button
+                onClick={() => handleDualCommit('T1')}
+                className="bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 font-cinzel font-bold text-xs sm:text-sm p-3.5 rounded-xl border border-emerald-500/50 shadow-md transition-all flex items-center justify-center gap-2 transform active:scale-95"
+              >
+                <span>💳</span>
+                <span>T1 THANH TOÁN (COMMIT)</span>
+              </button>
+
+              <button
+                onClick={() => handleDualRollback('T1')}
+                className="bg-rose-950/80 hover:bg-rose-900 text-rose-200 font-cinzel font-bold text-xs sm:text-sm p-3.5 rounded-xl border border-rose-500/50 shadow-md transition-all flex items-center justify-center gap-2 transform active:scale-95"
+              >
+                <span>↩</span>
+                <span>T1 HỦY THẺ (ROLLBACK)</span>
+              </button>
+            </div>
+          </div>
           <div className="glass-panel p-4 sm:p-5 rounded-2xl border-2 border-[#D4AF37]/40 mb-8 bg-gradient-to-r from-[#2B1B10]/70 via-[#1C1713] to-[#2B1216]/70 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#E5A84B] to-[#8E1E24] flex items-center justify-center text-2xl shadow-lg shadow-[#8E1E24]/30 animate-pulse">
@@ -3324,10 +3459,17 @@ function CineMaxApp() {
                       return (
                         <button
                           key={seat.id}
-                          onClick={() => handleDualSelectSeat('T1', seat.soGhe)}
+                          onMouseEnter={() => setHoveredDualSeat(seat.soGhe)}
+                          onClick={() => handleDualInstantRace(seat.soGhe)}
                           disabled={isSold}
-                          className={`p-2 rounded-xl text-center border transition-all flex flex-col items-center justify-center relative ${seatStyle}`}
+                          className={`p-2 rounded-xl text-center border transition-all flex flex-col items-center justify-center relative ${seatStyle} ${hoveredDualSeat === seat.soGhe ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-black' : ''}`}
+                          title={`Click để cả 2 con chuột cùng tranh ghế ${seat.soGhe}`}
                         >
+                          {hoveredDualSeat === seat.soGhe && (
+                            <div className="absolute -top-3 -left-3 z-20 flex items-center gap-1 bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-lg border border-black animate-bounce pointer-events-none">
+                              <span>🖱️</span> T1
+                            </div>
+                          )}
                           <span className="font-mono text-xs font-black">{seat.soGhe}</span>
                           <span className="text-[9px] font-mono mt-0.5">{statusText}</span>
                           {isHeldByMe && (
@@ -3475,10 +3617,17 @@ function CineMaxApp() {
                       return (
                         <button
                           key={seat.id}
-                          onClick={() => handleDualSelectSeat('T2', seat.soGhe)}
+                          onMouseEnter={() => setHoveredDualSeat(seat.soGhe)}
+                          onClick={() => handleDualInstantRace(seat.soGhe)}
                           disabled={isSold}
-                          className={`p-2 rounded-xl text-center border transition-all flex flex-col items-center justify-center relative ${seatStyle}`}
+                          className={`p-2 rounded-xl text-center border transition-all flex flex-col items-center justify-center relative ${seatStyle} ${hoveredDualSeat === seat.soGhe ? 'ring-2 ring-rose-500 ring-offset-2 ring-offset-black' : ''}`}
+                          title={`Click để cả 2 con chuột cùng tranh ghế ${seat.soGhe}`}
                         >
+                          {hoveredDualSeat === seat.soGhe && (
+                            <div className="absolute -top-3 -right-3 z-20 flex items-center gap-1 bg-rose-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-lg border border-white animate-bounce pointer-events-none">
+                              <span>🖱️</span> T2
+                            </div>
+                          )}
                           <span className="font-mono text-xs font-black">{seat.soGhe}</span>
                           <span className="text-[9px] font-mono mt-0.5">{statusText}</span>
                           {isHeldByMe && (

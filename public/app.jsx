@@ -427,6 +427,423 @@ function CineMaxApp() {
   // Sound Mute Toggle
   const [isSoundOn, setIsSoundOn] = useState(true);
 
+  // =============================================================
+  // DUAL-TRANSACTION SPLIT SCREEN (HAI GIAO TÁC SONG SONG) STATE
+  // =============================================================
+  const INITIAL_DUAL_SEATS = [
+    { id: 'A01', soGhe: 'A01', loai: 'STANDARD', hang: 'A', gia: 90000, trangThai: 'TRONG', holder: null, lockType: null },
+    { id: 'A02', soGhe: 'A02', loai: 'STANDARD', hang: 'A', gia: 90000, trangThai: 'TRONG', holder: null, lockType: null },
+    { id: 'A03', soGhe: 'A03', loai: 'STANDARD', hang: 'A', gia: 90000, trangThai: 'TRONG', holder: null, lockType: null },
+    { id: 'B01', soGhe: 'B01', loai: 'VIP', hang: 'B', gia: 120000, trangThai: 'TRONG', holder: null, lockType: null },
+    { id: 'B02', soGhe: 'B02', loai: 'VIP', hang: 'B', gia: 120000, trangThai: 'TRONG', holder: null, lockType: null },
+    { id: 'B03', soGhe: 'B03', loai: 'VIP', hang: 'B', gia: 120000, trangThai: 'TRONG', holder: null, lockType: null },
+    { id: 'C01', soGhe: 'C01', loai: 'COUPLE', hang: 'C', gia: 200000, trangThai: 'TRONG', holder: null, lockType: null },
+    { id: 'C02', soGhe: 'C02', loai: 'COUPLE', hang: 'C', gia: 200000, trangThai: 'TRONG', holder: null, lockType: null },
+  ];
+
+  const [dualSeats, setDualSeats] = useState(INITIAL_DUAL_SEATS);
+  const [dualExtraSeats, setDualExtraSeats] = useState([]);
+  const [dualTicketPrice, setDualTicketPrice] = useState(90000);
+  const [dualIsFixed, setDualIsFixed] = useState(true);
+  const [dualRunningPreset, setDualRunningPreset] = useState(false);
+  const [dualSelectedScenario, setDualSelectedScenario] = useState('free');
+
+  const [dualT1, setDualT1] = useState({
+    user: 'Nguyễn Hoàng Long',
+    spid: 52,
+    role: 'VIP',
+    status: 'IDLE',
+    selectedSeats: ['B01'],
+    heldSeats: [],
+    logs: ['[Session SPID 52] Kết nối thành công đến RapChieuPhimDB.'],
+    alert: null,
+    alertType: 'info'
+  });
+
+  const [dualT2, setDualT2] = useState({
+    user: 'Trần Thị B',
+    spid: 53,
+    role: 'Khách Thường',
+    status: 'IDLE',
+    selectedSeats: ['B01'],
+    heldSeats: [],
+    logs: ['[Session SPID 53] Kết nối thành công đến RapChieuPhimDB.'],
+    alert: null,
+    alertType: 'info'
+  });
+
+  const [dualTimeline, setDualTimeline] = useState([
+    { time: '00:00:00', source: 'SQL_ENGINE', text: 'SQL Server: Đã khởi tạo Connection Pool cho 2 Sessions song song (SPID 52 & SPID 53).' }
+  ]);
+
+  // Dual Transaction Handlers
+  const addDualTimeline = (source, text) => {
+    const now = new Date();
+    const timeStr = now.toTimeString().split(' ')[0];
+    setDualTimeline(prev => [{ time: timeStr, source, text }, ...prev.slice(0, 49)]);
+  };
+
+  const handleDualReset = () => {
+    sound.play('click');
+    setDualSeats(INITIAL_DUAL_SEATS);
+    setDualExtraSeats([]);
+    setDualTicketPrice(90000);
+    setDualT1({
+      user: 'Nguyễn Hoàng Long',
+      spid: 52,
+      role: 'VIP',
+      status: 'IDLE',
+      selectedSeats: ['B01'],
+      heldSeats: [],
+      logs: ['[Session SPID 52] Reset phiên giao dịch.'],
+      alert: null,
+      alertType: 'info'
+    });
+    setDualT2({
+      user: 'Trần Thị B',
+      spid: 53,
+      role: 'Khách Thường',
+      status: 'IDLE',
+      selectedSeats: ['B01'],
+      heldSeats: [],
+      logs: ['[Session SPID 53] Reset phiên giao dịch.'],
+      alert: null,
+      alertType: 'info'
+    });
+    addDualTimeline('SQL_ENGINE', 'Đã reset toàn bộ ghế và trạng thái 2 giao tác về ban đầu.');
+  };
+
+  const handleDualSelectSeat = (session, seatId) => {
+    sound.play('click');
+    if (session === 'T1') {
+      setDualT1(prev => ({
+        ...prev,
+        selectedSeats: prev.selectedSeats.includes(seatId) 
+          ? prev.selectedSeats.filter(s => s !== seatId)
+          : [...prev.selectedSeats, seatId]
+      }));
+    } else {
+      setDualT2(prev => ({
+        ...prev,
+        selectedSeats: prev.selectedSeats.includes(seatId) 
+          ? prev.selectedSeats.filter(s => s !== seatId)
+          : [...prev.selectedSeats, seatId]
+      }));
+    }
+  };
+
+  const handleDualBeginTran = (session) => {
+    sound.play('click');
+    if (session === 'T1') {
+      setDualT1(prev => ({
+        ...prev,
+        status: 'ACTIVE',
+        logs: [`BEGIN TRANSACTION; (Session SPID 52)`, ...prev.logs],
+        alert: 'Đã mở giao dịch. Ghế được chọn sẽ được bảo vệ khi bấm Giữ Chỗ.',
+        alertType: 'info'
+      }));
+      addDualTimeline('T1', 'BEGIN TRANSACTION: Khách A (SPID 52) mở phiên giao dịch.');
+    } else {
+      setDualT2(prev => ({
+        ...prev,
+        status: 'ACTIVE',
+        logs: [`BEGIN TRANSACTION; (Session SPID 53)`, ...prev.logs],
+        alert: 'Đã mở giao dịch. Bạn có thể chọn ghế để kiểm tra khóa.',
+        alertType: 'info'
+      }));
+      addDualTimeline('T2', 'BEGIN TRANSACTION: Khách B (SPID 53) mở phiên giao dịch.');
+    }
+  };
+
+  const handleDualHoldSeats = (session) => {
+    const isT1 = session === 'T1';
+    const myState = isT1 ? dualT1 : dualT2;
+    const otherSession = isT1 ? 'T2' : 'T1';
+    const otherState = isT1 ? dualT2 : dualT1;
+    const seatsToHold = myState.selectedSeats;
+
+    if (seatsToHold.length === 0) {
+      sound.play('error');
+      if (isT1) setDualT1(prev => ({ ...prev, alert: 'Vui lòng chọn ít nhất 1 ghế!', alertType: 'warning' }));
+      else setDualT2(prev => ({ ...prev, alert: 'Vui lòng chọn ít nhất 1 ghế!', alertType: 'warning' }));
+      return;
+    }
+
+    // Check if already booked
+    const alreadyBooked = dualSeats.filter(s => seatsToHold.includes(s.soGhe) && s.trangThai === 'DA_DAT');
+    if (alreadyBooked.length > 0) {
+      sound.play('error');
+      const msg = `Ghế ${alreadyBooked.map(s => s.soGhe).join(', ')} ĐÃ BÁN, không thể giữ!`;
+      if (isT1) setDualT1(prev => ({ ...prev, alert: msg, alertType: 'error' }));
+      else setDualT2(prev => ({ ...prev, alert: msg, alertType: 'error' }));
+      return;
+    }
+
+    // Check if held by the other session
+    const heldByOther = dualSeats.filter(s => seatsToHold.includes(s.soGhe) && s.holder === otherSession && s.trangThai === 'DANG_GIU');
+    
+    if (heldByOther.length > 0) {
+      if (dualIsFixed) {
+        // Safe: Blocked!
+        sound.play('error');
+        const conflictSeats = heldByOther.map(s => s.soGhe).join(', ');
+        const blockMsg = `⏳ BLOCKED! Ghế ${conflictSeats} đang bị ${otherSession} giữ khóa UPDLOCK/X-Lock. SQL Server bắt ${session} phải CHỜ cho đến khi ${otherSession} COMMIT hoặc ROLLBACK!`;
+        if (isT1) {
+          setDualT1(prev => ({
+            ...prev,
+            status: 'ACTIVE',
+            alert: blockMsg,
+            alertType: 'warning',
+            logs: [`BLOCKED: Chờ khóa RID trên ghế ${conflictSeats}...`, ...prev.logs]
+          }));
+        } else {
+          setDualT2(prev => ({
+            ...prev,
+            status: 'ACTIVE',
+            alert: blockMsg,
+            alertType: 'warning',
+            logs: [`BLOCKED: Chờ khóa RID trên ghế ${conflictSeats}...`, ...prev.logs]
+          }));
+        }
+        addDualTimeline('SQL_ENGINE', `🔴 XUNG ĐỘT KHÓA: ${session} bị chặn (BLOCKED) khi cố truy cập ghế ${conflictSeats} của ${otherSession}.`);
+        return;
+      } else {
+        // Unsafe: Simulate Lost Update overwrite!
+        sound.play('error');
+        const conflictSeats = heldByOther.map(s => s.soGhe).join(', ');
+        const warnMsg = `💥 XUNG ĐỘT (LOST UPDATE)! Do không dùng UPDLOCK, ${session} đã GHI ĐÈ lên ghế ${conflictSeats} mà ${otherSession} đang giữ! Cập nhật của ${otherSession} bị mất!`;
+        if (isT1) setDualT1(prev => ({ ...prev, alert: warnMsg, alertType: 'error' }));
+        else setDualT2(prev => ({ ...prev, alert: warnMsg, alertType: 'error' }));
+        addDualTimeline('SQL_ENGINE', `⚠️ [LỖI LOST UPDATE] ${session} ghi đè dữ liệu của ${otherSession} trên ghế ${conflictSeats}!`);
+      }
+    }
+
+    // Successfully hold seats
+    sound.play('beep');
+    setDualSeats(prev => prev.map(s => {
+      if (seatsToHold.includes(s.soGhe)) {
+        return {
+          ...s,
+          trangThai: 'DANG_GIU',
+          holder: session,
+          lockType: dualIsFixed ? 'UPDLOCK' : 'NONE'
+        };
+      }
+      return s;
+    }));
+
+    const successMsg = `🔒 Đã giữ ghế ${seatsToHold.join(', ')} với khóa ${dualIsFixed ? 'UPDLOCK (Update Lock)' : 'Không khóa (NOLOCK)'}.`;
+    if (isT1) {
+      setDualT1(prev => ({
+        ...prev,
+        status: 'ACTIVE',
+        heldSeats: [...new Set([...prev.heldSeats, ...seatsToHold])],
+        alert: successMsg,
+        alertType: 'success',
+        logs: [`SELECT * FROM Ghe WITH (${dualIsFixed ? 'UPDLOCK, ROWLOCK' : 'NOLOCK'}) WHERE MaGhe IN ('${seatsToHold.join("','")}'); -- GIỮ KHÓA`, ...prev.logs]
+      }));
+    } else {
+      setDualT2(prev => ({
+        ...prev,
+        status: 'ACTIVE',
+        heldSeats: [...new Set([...prev.heldSeats, ...seatsToHold])],
+        alert: successMsg,
+        alertType: 'success',
+        logs: [`SELECT * FROM Ghe WITH (${dualIsFixed ? 'UPDLOCK, ROWLOCK' : 'NOLOCK'}) WHERE MaGhe IN ('${seatsToHold.join("','")}'); -- GIỮ KHÓA`, ...prev.logs]
+      }));
+    }
+    addDualTimeline(session, `Nắm giữ ghế ${seatsToHold.join(', ')} (${dualIsFixed ? 'UPDLOCK' : 'NOLOCK'}).`);
+  };
+
+  const handleDualCommit = (session) => {
+    const isT1 = session === 'T1';
+    const myState = isT1 ? dualT1 : dualT2;
+    const otherSession = isT1 ? 'T2' : 'T1';
+    const seatsToCommit = myState.heldSeats;
+
+    if (seatsToCommit.length === 0) {
+      sound.play('error');
+      const msg = 'Bạn chưa giữ ghế nào để thanh toán!';
+      if (isT1) setDualT1(prev => ({ ...prev, alert: msg, alertType: 'warning' }));
+      else setDualT2(prev => ({ ...prev, alert: msg, alertType: 'warning' }));
+      return;
+    }
+
+    sound.play('success');
+    // Change to DA_DAT
+    setDualSeats(prev => prev.map(s => {
+      if (seatsToCommit.includes(s.soGhe)) {
+        return { ...s, trangThai: 'DA_DAT', holder: session, lockType: null };
+      }
+      return s;
+    }));
+
+    // Notify current session
+    const okMsg = `🎉 THANH TOÁN THÀNH CÔNG! Đã xuất vé ${seatsToCommit.join(', ')}. Giao dịch đã COMMIT vĩnh viễn vào CSDL.`;
+    if (isT1) {
+      setDualT1(prev => ({
+        ...prev,
+        status: 'COMMITTED',
+        alert: okMsg,
+        alertType: 'success',
+        logs: [`UPDATE Ghe SET TrangThai = 'DA_DAT'; COMMIT TRANSACTION; -- LƯU VĨNH VIỄN`, ...prev.logs]
+      }));
+      // Notify other session
+      setDualT2(prev => ({
+        ...prev,
+        selectedSeats: prev.selectedSeats.filter(s => !seatsToCommit.includes(s)),
+        alert: `⚠️ Ghế ${seatsToCommit.join(', ')} vừa được T1 thanh toán thành công! Ghế đã chuyển sang ĐÃ BÁN.`,
+        alertType: 'info'
+      }));
+    } else {
+      setDualT2(prev => ({
+        ...prev,
+        status: 'COMMITTED',
+        alert: okMsg,
+        alertType: 'success',
+        logs: [`UPDATE Ghe SET TrangThai = 'DA_DAT'; COMMIT TRANSACTION; -- LƯU VĨNH VIỄN`, ...prev.logs]
+      }));
+      setDualT1(prev => ({
+        ...prev,
+        selectedSeats: prev.selectedSeats.filter(s => !seatsToCommit.includes(s)),
+        alert: `⚠️ Ghế ${seatsToCommit.join(', ')} vừa được T2 thanh toán thành công! Ghế đã chuyển sang ĐÃ BÁN.`,
+        alertType: 'info'
+      }));
+    }
+    addDualTimeline(session, `COMMIT TRANSACTION: Đặt vé ${seatsToCommit.join(', ')} thành công.`);
+  };
+
+  const handleDualRollback = (session) => {
+    const isT1 = session === 'T1';
+    const myState = isT1 ? dualT1 : dualT2;
+    const otherSession = isT1 ? 'T2' : 'T1';
+    const seatsToRollback = myState.heldSeats;
+
+    sound.play('vintage');
+    // Release held seats back to TRONG
+    setDualSeats(prev => prev.map(s => {
+      if (seatsToRollback.includes(s.soGhe) && s.holder === session && s.trangThai !== 'DA_DAT') {
+        return { ...s, trangThai: 'TRONG', holder: null, lockType: null };
+      }
+      return s;
+    }));
+
+    const rollMsg = `↩ ĐÃ HỦY ĐƠN (ROLLBACK)! Thẻ lỗi hoặc hủy thao tác. Ghế ${seatsToRollback.join(', ')} đã được nhả lại thành TRỐNG.`;
+    if (isT1) {
+      setDualT1(prev => ({
+        ...prev,
+        status: 'ROLLED_BACK',
+        heldSeats: [],
+        alert: rollMsg,
+        alertType: 'warning',
+        logs: [`ROLLBACK TRANSACTION; -- HOÀN TÁC TOÀN BỘ, NHẢ KHÓA`, ...prev.logs]
+      }));
+      setDualT2(prev => ({
+        ...prev,
+        alert: `🟢 Ghế ${seatsToRollback.join(', ')} vừa được T1 nhả ra do hủy đơn! Bạn có thể đặt ngay bây giờ.`,
+        alertType: 'success'
+      }));
+    } else {
+      setDualT2(prev => ({
+        ...prev,
+        status: 'ROLLED_BACK',
+        heldSeats: [],
+        alert: rollMsg,
+        alertType: 'warning',
+        logs: [`ROLLBACK TRANSACTION; -- HOÀN TÁC TOÀN BỘ, NHẢ KHÓA`, ...prev.logs]
+      }));
+      setDualT1(prev => ({
+        ...prev,
+        alert: `🟢 Ghế ${seatsToRollback.join(', ')} vừa được T2 nhả ra do hủy đơn! Bạn có thể đặt ngay bây giờ.`,
+        alertType: 'success'
+      }));
+    }
+    addDualTimeline(session, `ROLLBACK TRANSACTION: Hủy giao dịch, nhả ghế ${seatsToRollback.join(', ')} về TRỐNG.`);
+  };
+
+  const handleDualRunScenario = async (scenarioKey) => {
+    if (dualRunningPreset) return;
+    setDualRunningPreset(true);
+    setDualSelectedScenario(scenarioKey);
+    handleDualReset();
+
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+
+    if (scenarioKey === 'lost_update') {
+      addDualTimeline('SCENARIO', '▶ BẮT ĐẦU KỊCH BẢN 1: LOST UPDATE (Cả 2 khách cùng chọn ghế B01)');
+      await wait(600);
+      handleDualBeginTran('T1');
+      await wait(600);
+      handleDualBeginTran('T2');
+      await wait(800);
+      handleDualHoldSeats('T1');
+      await wait(1000);
+      handleDualHoldSeats('T2');
+    } else if (scenarioKey === 'dirty_read') {
+      addDualTimeline('SCENARIO', '▶ BẮT ĐẦU KỊCH BẢN 2: DIRTY READ (T1 giữ ghế A01, T2 đọc, rồi T1 Rollback)');
+      await wait(600);
+      setDualT1(prev => ({ ...prev, selectedSeats: ['A01'] }));
+      setDualT2(prev => ({ ...prev, selectedSeats: ['A01'] }));
+      await wait(600);
+      handleDualBeginTran('T1');
+      await wait(600);
+      handleDualHoldSeats('T1');
+      await wait(1200);
+      if (!dualIsFixed) {
+        addDualTimeline('T2', 'Đọc trộm (DIRTY READ): Thấy A01 đang giữ bởi T1 dù chưa COMMIT!');
+      } else {
+        addDualTimeline('SQL_ENGINE', 'READ COMMITTED: T2 bị chặn, bắt buộc phải đợi T1 kết thúc!');
+      }
+      await wait(1200);
+      handleDualRollback('T1');
+    } else if (scenarioKey === 'unrepeatable_read') {
+      addDualTimeline('SCENARIO', '▶ BẮT ĐẦU KỊCH BẢN 3: NON-REPEATABLE READ (T1 đọc giá 90k, Admin T2 đổi thành 120k)');
+      await wait(600);
+      handleDualBeginTran('T1');
+      addDualTimeline('T1', 'Lần 1: Khách A đọc giá vé = 90.000đ.');
+      await wait(1000);
+      setDualTicketPrice(120000);
+      addDualTimeline('T2', 'Admin T2 UPDATE SuatChieu SET GiaVe = 120.000đ; COMMIT;');
+      await wait(1000);
+      if (!dualIsFixed) {
+        addDualTimeline('T1', 'Lần 2: Khách A đọc lại giá vé = 120.000đ! (BỊ THAY ĐỔI)');
+      } else {
+        addDualTimeline('T1', 'REPEATABLE READ: Khóa S-Lock giữ nguyên giá 90.000đ cho Khách A đến hết giao tác!');
+      }
+    } else if (scenarioKey === 'phantom_read') {
+      addDualTimeline('SCENARIO', '▶ BẮT ĐẦU KỊCH BẢN 4: PHANTOM READ (T1 đếm ghế VIP, T2 lắp thêm ghế B04)');
+      await wait(600);
+      addDualTimeline('T1', 'Lần 1: Khách A đếm số ghế VIP trống: SELECT COUNT(*) => 3 ghế (B01, B02, B03).');
+      await wait(1200);
+      setDualExtraSeats([{ id: 'B04', soGhe: 'B04', loai: 'VIP', hang: 'B', gia: 120000, trangThai: 'TRONG', holder: null, lockType: null }]);
+      addDualTimeline('T2', 'Kỹ thuật viên T2 INSERT INTO Ghe VALUES (B04, VIP); COMMIT;');
+      await wait(1200);
+      if (!dualIsFixed) {
+        addDualTimeline('T1', 'Lần 2: Khách A đếm lại => 4 ghế! (XUẤT HIỆN BÓNG MA B04)');
+      } else {
+        addDualTimeline('T1', 'SERIALIZABLE (RangeS-S): Chặn đứng lệnh INSERT B04 cho đến khi T1 đếm xong!');
+      }
+    } else if (scenarioKey === 'deadlock') {
+      addDualTimeline('SCENARIO', '▶ BẮT ĐẦU KỊCH BẢN 5: DEADLOCK (T1 giữ A01 đòi A02; T2 giữ A02 đòi A01)');
+      await wait(600);
+      setDualT1(prev => ({ ...prev, selectedSeats: ['A01'] }));
+      setDualT2(prev => ({ ...prev, selectedSeats: ['A02'] }));
+      await wait(600);
+      handleDualBeginTran('T1');
+      handleDualBeginTran('T2');
+      await wait(600);
+      handleDualHoldSeats('T1');
+      await wait(600);
+      handleDualHoldSeats('T2');
+      await wait(1000);
+      addDualTimeline('SQL_ENGINE', 'T1 xin khóa A02 (chờ T2) <---> T2 xin khóa A01 (chờ T1) => CHU TRÌNH VÒNG LẶP!');
+      await wait(1200);
+      addDualTimeline('SQL_ENGINE', '⚡ DEADLOCK MONITOR: Phát hiện chu trình, bắn hạ T1 bằng Msg 1205 (Deadlock Victim)!');
+    }
+    setDualRunningPreset(false);
+  };
+
+
   // Toast Helper
   const showToast = (message, type = 'info') => {
     setToast({ show: true, message, type });
@@ -1002,6 +1419,13 @@ function CineMaxApp() {
               className={`px-4 py-2 rounded-full text-xs font-cinzel font-bold tracking-wider transition-all flex items-center gap-1.5 ${currentTab === 'lab' ? 'bg-gradient-to-r from-[#D4AF37] to-[#E5A84B] text-[#120F0D] shadow-md shadow-[#D4AF37]/40' : 'text-[#D4AF37] hover:bg-[#D4AF37]/10'}`}
             >
               <span>⚡</span> Lab SQL <span className="bg-[#14100D] text-[#D4AF37] text-[10px] px-1.5 py-0.5 rounded font-mono border border-[#D4AF37]/30">HQTCSDL</span>
+            </button>
+
+            <button 
+              onClick={() => { sound.play('click'); setCurrentTab('dual'); }} 
+              className={`px-4 py-2 rounded-full text-xs font-cinzel font-bold tracking-wider transition-all flex items-center gap-1.5 ${currentTab === 'dual' ? 'bg-gradient-to-r from-[#8E1E24] via-[#D4AF37] to-[#E5A84B] text-[#120F0D] shadow-md shadow-[#D4AF37]/40' : 'text-[#E5A84B] hover:bg-[#D4AF37]/10'}`}
+            >
+              <span>👥</span> Hai Giao Tác Song Song
             </button>
           </nav>
 
@@ -2641,6 +3065,453 @@ function CineMaxApp() {
                 <pre className="text-slate-300 overflow-x-auto whitespace-pre-wrap leading-relaxed">
                   {SQL_CONFLICTS[currentConflictId].sqlFixed}
                 </pre>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ============================================================= */}
+      {/* TAB 10: DUAL-TRANSACTION SPLIT SCREEN (HAI GIAO TÁC SONG SONG)*/}
+      {/* ============================================================= */}
+      {currentTab === 'dual' && (
+        <section className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+          {/* Header & Controls */}
+          <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-[#D4AF37]/25 mb-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div>
+              <span className="bg-[#1C1713] text-[#E5A84B] border border-[#E5A84B]/40 text-[11px] font-mono font-bold px-3 py-1 rounded-md">
+                👥 MÔ HÌNH THỰC NGHIỆM ĐỒNG THỜI (CONCURRENCY SIMULATOR)
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-cinzel font-black text-[#F6ECE1] mt-2">
+                Màn Hình Hai Giao Tác Song Song (Dual-Session)
+              </h2>
+              <p className="text-[#A8998A] text-xs sm:text-sm mt-1 leading-relaxed">
+                Quan sát thời gian thực cách 2 khách hàng đồng thời tương tác vào rạp chiếu phim, cơ chế cấp khóa (Locking Protocol), hiện tượng chờ khóa (Blocked) và giải quyết tranh chấp SQL Server.
+              </p>
+            </div>
+
+            {/* Controls: Mode Switch & Reset */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 bg-[#120F0D] p-1.5 rounded-full border border-[#D4AF37]/30">
+                <span className={`text-[11px] font-bold px-3 py-1 rounded-full transition-all font-mono ${!dualIsFixed ? 'bg-[#8E1E24] text-[#F6ECE1] border border-[#D4AF37]/30' : 'text-[#A8998A]'}`}>
+                  🔴 Chưa Sửa (Lỗi)
+                </span>
+                <button 
+                  onClick={() => {
+                    sound.play('click');
+                    setDualIsFixed(!dualIsFixed);
+                    handleDualReset();
+                  }}
+                  className={`w-12 h-6 rounded-full transition-colors relative p-1 ${dualIsFixed ? 'bg-emerald-700' : 'bg-[#8E1E24]'}`}
+                  title="Gạt công tắc để chuyển giữa chế độ Mô phỏng lỗi và Đã khắc phục an toàn"
+                >
+                  <div className={`w-4 h-4 rounded-full bg-[#F6ECE1] transition-transform ${dualIsFixed ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                </button>
+                <span className={`text-[11px] font-bold px-3 py-1 rounded-full transition-all font-mono ${dualIsFixed ? 'bg-emerald-700 text-[#F6ECE1] border border-[#D4AF37]/30' : 'text-[#A8998A]'}`}>
+                  🟢 Đã Sửa (An Toàn)
+                </span>
+              </div>
+
+              <button 
+                onClick={handleDualReset}
+                className="bg-[#181410] hover:bg-[#2A241E] text-[#D4AF37] font-bold text-xs px-4 py-2.5 rounded-full border border-[#D4AF37]/30 transition-all font-cinzel flex items-center gap-1.5"
+              >
+                <span>🔄</span> Reset 2 Giao Tác
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Scenario Preset Bar */}
+          <div className="glass-panel p-4 rounded-2xl border border-[#D4AF37]/20 mb-8">
+            <div className="text-[11px] font-mono font-bold text-[#D4AF37] mb-3 uppercase tracking-wider flex items-center gap-2">
+              <span>⚡</span> CHỌN NHANH KỊCH BẢN TRANH CHẤP ĐỂ CHẠY THỬ NGHIỆM TỰ ĐỘNG:
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              {[
+                { id: 'free', label: '🎮 Tự Do Thử Nghiệm', sub: 'Tự click ghế & bấm nút' },
+                { id: 'lost_update', label: '1️⃣ Lost Update', sub: 'Cả 2 cùng tranh ghế B01' },
+                { id: 'dirty_read', label: '2️⃣ Dirty Read', sub: 'T1 giữ ghế rồi Rollback' },
+                { id: 'unrepeatable_read', label: '3️⃣ Unrepeatable', sub: 'Admin đổi giá vé lúc T1 xem' },
+                { id: 'phantom_read', label: '4️⃣ Phantom Read', sub: 'T1 đếm ghế, T2 chèn B04' },
+                { id: 'deadlock', label: '5️⃣ Deadlock', sub: 'T1 và T2 khóa chéo nhau' }
+              ].map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    sound.play('click');
+                    if (s.id === 'free') {
+                      setDualSelectedScenario('free');
+                      handleDualReset();
+                    } else {
+                      handleDualRunScenario(s.id);
+                    }
+                  }}
+                  disabled={dualRunningPreset}
+                  className={`p-3 rounded-xl text-left border transition-all ${dualSelectedScenario === s.id ? 'bg-[#3A2412] border-[#D4AF37] shadow-md' : 'bg-[#14100D] border-[#3A3026] hover:border-[#D4AF37]/40'} disabled:opacity-50`}
+                >
+                  <div className="font-cinzel font-bold text-xs text-[#F6ECE1]">{s.label}</div>
+                  <div className="text-[10px] text-[#A8998A] mt-0.5 line-clamp-1">{s.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* SIDE-BY-SIDE DUAL SESSIONS */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* ========================================================= */}
+            {/* PANEL 1 (LEFT): GIAO TÁC 1 - KHÁCH HÀNG A (VIP - SPID 52) */}
+            {/* ========================================================= */}
+            <div className="glass-panel p-6 sm:p-7 rounded-2xl border-2 border-[#E5A84B]/40 bg-gradient-to-b from-[#1C1713] to-[#120F0D] flex flex-col justify-between shadow-2xl">
+              <div>
+                {/* Session Header */}
+                <div className="flex items-center justify-between pb-4 mb-5 border-b border-[#E5A84B]/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#E5A84B] to-[#996515] text-[#120F0D] font-black font-mono flex items-center justify-center text-sm shadow-md">
+                      T1
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-cinzel font-black text-base text-[#F6ECE1]">Giao Tác 1 (Session #52)</h3>
+                        <span className="bg-[#3D2510] text-[#E5A84B] border border-[#E5A84B]/40 text-[10px] font-mono px-2 py-0.2 rounded font-bold">
+                          VIP USER
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[#B8A898] font-mono">
+                        Khách: <strong className="text-[#E5A84B]">{dualT1.user}</strong> (SPID 52)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status Badge */}
+                  <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold border ${dualT1.status === 'ACTIVE' ? 'bg-amber-950/80 text-amber-300 border-amber-500 animate-pulse' : dualT1.status === 'COMMITTED' ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500' : dualT1.status === 'ROLLED_BACK' ? 'bg-rose-950/80 text-rose-300 border-rose-500' : 'bg-[#14100D] text-[#8B7C6E] border-[#3A3026]'}`}>
+                    {dualT1.status === 'ACTIVE' ? '🟢 TRAN ĐANG MỞ' : dualT1.status === 'COMMITTED' ? '✅ COMMITTED' : dualT1.status === 'ROLLED_BACK' ? '↩ ROLLED BACK' : '⚪ IDLE (CHƯA TRAN)'}
+                  </span>
+                </div>
+
+                {/* Mini Cinema Curved Screen */}
+                <div className="mb-4 text-center">
+                  <div className="text-[10px] font-mono text-[#A8998A] tracking-[0.2em] uppercase mb-1">MÀN HÌNH CHIẾU PHIM ROYAL IMAX</div>
+                  <div className="h-2 w-3/4 mx-auto rounded-t-full bg-gradient-to-r from-transparent via-[#E5A84B]/50 to-transparent shadow-[0_-4px_10px_rgba(229,168,75,0.3)]"></div>
+                </div>
+
+                {/* Seat Map for T1 */}
+                <div className="bg-[#0E0C0A] p-4 rounded-xl border border-[#3A3026] mb-5">
+                  <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto">
+                    {[...dualSeats, ...dualExtraSeats].map(seat => {
+                      const isSelected = dualT1.selectedSeats.includes(seat.soGhe);
+                      const isHeldByMe = dualT1.heldSeats.includes(seat.soGhe);
+                      const isHeldByOther = seat.holder === 'T2' && seat.trangThai === 'DANG_GIU';
+                      const isSold = seat.trangThai === 'DA_DAT';
+
+                      let seatStyle = 'bg-[#1F1913] border-[#3A3026] text-[#D5C5B5]';
+                      let statusText = `${seat.gia / 1000}k`;
+
+                      if (isSold) {
+                        seatStyle = 'bg-[#2A1215] border-[#8E1E24]/60 text-[#8B7C6E] opacity-60 cursor-not-allowed';
+                        statusText = 'ĐÃ BÁN';
+                      } else if (isHeldByMe) {
+                        seatStyle = 'bg-[#3A2412] border-[#E5A84B] text-[#F6ECE1] shadow-[0_0_12px_rgba(229,168,75,0.4)] animate-pulse font-bold';
+                        statusText = dualIsFixed ? 'UPDLOCK' : 'ĐANG GIỮ';
+                      } else if (isHeldByOther) {
+                        seatStyle = 'bg-[#2A1810] border-[#B3262E]/70 text-[#E5A84B] border-dashed';
+                        statusText = '🔒 T2 GIỮ';
+                      } else if (isSelected) {
+                        seatStyle = 'bg-[#2B2015] border-[#E5A84B] text-[#E5A84B] font-bold shadow-sm';
+                        statusText = 'T1 CHỌN';
+                      }
+
+                      return (
+                        <button
+                          key={seat.id}
+                          onClick={() => handleDualSelectSeat('T1', seat.soGhe)}
+                          disabled={isSold}
+                          className={`p-2 rounded-xl text-center border transition-all flex flex-col items-center justify-center relative ${seatStyle}`}
+                        >
+                          <span className="font-mono text-xs font-black">{seat.soGhe}</span>
+                          <span className="text-[9px] font-mono mt-0.5">{statusText}</span>
+                          {isHeldByMe && (
+                            <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-amber-500 rounded-full text-[9px] text-black font-bold flex items-center justify-center">
+                              ✓
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] font-mono text-[#A8998A] mt-3 pt-2 border-t border-[#3A3026]">
+                    <span>Ghế chọn: <strong className="text-[#E5A84B]">{dualT1.selectedSeats.join(', ') || 'Chưa chọn'}</strong></span>
+                    <span>Đang giữ: <strong className="text-emerald-400">{dualT1.heldSeats.join(', ') || '0'}</strong></span>
+                  </div>
+                </div>
+
+                {/* 4 Transaction Action Buttons */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                  <button
+                    onClick={() => handleDualBeginTran('T1')}
+                    className="bg-[#2B2015] hover:bg-[#3D2C1C] text-[#E5A84B] font-cinzel font-bold text-xs p-2.5 rounded-xl border border-[#E5A84B]/40 transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
+                  >
+                    <span className="text-sm">▶</span>
+                    <span>1. BEGIN TRAN</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDualHoldSeats('T1')}
+                    className="bg-[#3D2510] hover:bg-[#523216] text-[#F6ECE1] font-cinzel font-bold text-xs p-2.5 rounded-xl border border-[#E5A84B] transition-all flex flex-col items-center justify-center gap-1 shadow-md shadow-[#E5A84B]/20"
+                  >
+                    <span className="text-sm">🔒</span>
+                    <span>2. GIỮ GHẾ</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDualCommit('T1')}
+                    className="bg-emerald-900/60 hover:bg-emerald-800/70 text-emerald-200 font-cinzel font-bold text-xs p-2.5 rounded-xl border border-emerald-500/50 transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
+                  >
+                    <span className="text-sm">💳</span>
+                    <span>3. COMMIT</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDualRollback('T1')}
+                    className="bg-rose-950/60 hover:bg-rose-900/70 text-rose-200 font-cinzel font-bold text-xs p-2.5 rounded-xl border border-rose-500/50 transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
+                  >
+                    <span className="text-sm">↩</span>
+                    <span>4. ROLLBACK</span>
+                  </button>
+                </div>
+
+                {/* Live Alert Box for T1 */}
+                {dualT1.alert && (
+                  <div className={`p-3 rounded-xl border text-xs leading-relaxed mb-4 flex items-start gap-2 ${dualT1.alertType === 'error' ? 'bg-rose-950/70 border-rose-600/70 text-rose-200' : dualT1.alertType === 'warning' ? 'bg-amber-950/70 border-amber-600/70 text-amber-200' : 'bg-[#181410] border-[#E5A84B]/40 text-[#E5A84B]'}`}>
+                    <span className="text-base flex-shrink-0">
+                      {dualT1.alertType === 'error' ? '❌' : dualT1.alertType === 'warning' ? '⚠️' : 'ℹ️'}
+                    </span>
+                    <div>{dualT1.alert}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* T-SQL Console Logs */}
+              <div className="bg-[#070605] p-3 rounded-xl border border-[#3A3026]">
+                <div className="text-[10px] font-mono text-[#8B7C6E] uppercase mb-1 flex items-center justify-between">
+                  <span>💻 CONSOLE T-SQL (SESSION 52)</span>
+                  <span className="text-[#E5A84B]">T1 LOGS</span>
+                </div>
+                <div className="font-mono text-[11px] text-[#A8998A] space-y-1 max-h-24 overflow-y-auto pr-1">
+                  {dualT1.logs.map((log, i) => (
+                    <div key={i} className={log.includes('BLOCKED') ? 'text-amber-400 font-bold' : log.includes('COMMIT') ? 'text-emerald-400' : log.includes('ROLLBACK') ? 'text-rose-400' : 'text-[#D5C5B5]'}>
+                      &gt; {log}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ========================================================= */}
+            {/* PANEL 2 (RIGHT): GIAO TÁC 2 - KHÁCH HÀNG B (SPID 53)      */}
+            {/* ========================================================= */}
+            <div className="glass-panel p-6 sm:p-7 rounded-2xl border-2 border-[#8E1E24]/60 bg-gradient-to-b from-[#1C1214] to-[#120F0D] flex flex-col justify-between shadow-2xl">
+              <div>
+                {/* Session Header */}
+                <div className="flex items-center justify-between pb-4 mb-5 border-b border-[#8E1E24]/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8E1E24] to-[#4A1215] text-[#F6ECE1] font-black font-mono flex items-center justify-center text-sm shadow-md border border-[#D4AF37]/30">
+                      T2
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-cinzel font-black text-base text-[#F6ECE1]">Giao Tác 2 (Session #53)</h3>
+                        <span className="bg-[#4A1215] text-[#F28B82] border border-[#8E1E24] text-[10px] font-mono px-2 py-0.2 rounded font-bold">
+                          KHÁCH THƯỜNG
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[#B8A898] font-mono">
+                        Khách: <strong className="text-[#F28B82]">{dualT2.user}</strong> (SPID 53)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status Badge */}
+                  <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold border ${dualT2.status === 'ACTIVE' ? 'bg-amber-950/80 text-amber-300 border-amber-500 animate-pulse' : dualT2.status === 'COMMITTED' ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500' : dualT2.status === 'ROLLED_BACK' ? 'bg-rose-950/80 text-rose-300 border-rose-500' : 'bg-[#14100D] text-[#8B7C6E] border-[#3A3026]'}`}>
+                    {dualT2.status === 'ACTIVE' ? '🟢 TRAN ĐANG MỞ' : dualT2.status === 'COMMITTED' ? '✅ COMMITTED' : dualT2.status === 'ROLLED_BACK' ? '↩ ROLLED BACK' : '⚪ IDLE (CHƯA TRAN)'}
+                  </span>
+                </div>
+
+                {/* Mini Cinema Curved Screen */}
+                <div className="mb-4 text-center">
+                  <div className="text-[10px] font-mono text-[#A8998A] tracking-[0.2em] uppercase mb-1">MÀN HÌNH CHIẾU PHIM ROYAL IMAX</div>
+                  <div className="h-2 w-3/4 mx-auto rounded-t-full bg-gradient-to-r from-transparent via-[#8E1E24]/60 to-transparent shadow-[0_-4px_10px_rgba(142,30,36,0.3)]"></div>
+                </div>
+
+                {/* Seat Map for T2 */}
+                <div className="bg-[#0E0C0A] p-4 rounded-xl border border-[#3A3026] mb-5">
+                  <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto">
+                    {[...dualSeats, ...dualExtraSeats].map(seat => {
+                      const isSelected = dualT2.selectedSeats.includes(seat.soGhe);
+                      const isHeldByMe = dualT2.heldSeats.includes(seat.soGhe);
+                      const isHeldByOther = seat.holder === 'T1' && seat.trangThai === 'DANG_GIU';
+                      const isSold = seat.trangThai === 'DA_DAT';
+
+                      let seatStyle = 'bg-[#1F1913] border-[#3A3026] text-[#D5C5B5]';
+                      let statusText = `${seat.gia / 1000}k`;
+
+                      if (isSold) {
+                        seatStyle = 'bg-[#2A1215] border-[#8E1E24]/60 text-[#8B7C6E] opacity-60 cursor-not-allowed';
+                        statusText = 'ĐÃ BÁN';
+                      } else if (isHeldByMe) {
+                        seatStyle = 'bg-[#4A1215] border-[#B3262E] text-[#F6ECE1] shadow-[0_0_12px_rgba(179,38,46,0.4)] animate-pulse font-bold';
+                        statusText = dualIsFixed ? 'UPDLOCK' : 'ĐANG GIỮ';
+                      } else if (isHeldByOther) {
+                        seatStyle = 'bg-[#2B2015] border-[#E5A84B]/70 text-[#E5A84B] border-dashed';
+                        statusText = '🔒 T1 GIỮ';
+                      } else if (isSelected) {
+                        seatStyle = 'bg-[#3A1418] border-[#B3262E] text-[#F28B82] font-bold shadow-sm';
+                        statusText = 'T2 CHỌN';
+                      }
+
+                      return (
+                        <button
+                          key={seat.id}
+                          onClick={() => handleDualSelectSeat('T2', seat.soGhe)}
+                          disabled={isSold}
+                          className={`p-2 rounded-xl text-center border transition-all flex flex-col items-center justify-center relative ${seatStyle}`}
+                        >
+                          <span className="font-mono text-xs font-black">{seat.soGhe}</span>
+                          <span className="text-[9px] font-mono mt-0.5">{statusText}</span>
+                          {isHeldByMe && (
+                            <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-rose-500 rounded-full text-[9px] text-white font-bold flex items-center justify-center">
+                              ✓
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] font-mono text-[#A8998A] mt-3 pt-2 border-t border-[#3A3026]">
+                    <span>Ghế chọn: <strong className="text-[#F28B82]">{dualT2.selectedSeats.join(', ') || 'Chưa chọn'}</strong></span>
+                    <span>Đang giữ: <strong className="text-emerald-400">{dualT2.heldSeats.join(', ') || '0'}</strong></span>
+                  </div>
+                </div>
+
+                {/* 4 Transaction Action Buttons */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                  <button
+                    onClick={() => handleDualBeginTran('T2')}
+                    className="bg-[#2A1417] hover:bg-[#3D1A1E] text-[#F28B82] font-cinzel font-bold text-xs p-2.5 rounded-xl border border-[#8E1E24]/60 transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
+                  >
+                    <span className="text-sm">▶</span>
+                    <span>1. BEGIN TRAN</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDualHoldSeats('T2')}
+                    className="bg-[#4A1215] hover:bg-[#66181D] text-[#F6ECE1] font-cinzel font-bold text-xs p-2.5 rounded-xl border border-[#B3262E] transition-all flex flex-col items-center justify-center gap-1 shadow-md shadow-[#B3262E]/25"
+                  >
+                    <span className="text-sm">🔒</span>
+                    <span>2. TRANH MUA</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDualCommit('T2')}
+                    className="bg-emerald-900/60 hover:bg-emerald-800/70 text-emerald-200 font-cinzel font-bold text-xs p-2.5 rounded-xl border border-emerald-500/50 transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
+                  >
+                    <span className="text-sm">💳</span>
+                    <span>3. COMMIT</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDualRollback('T2')}
+                    className="bg-rose-950/60 hover:bg-rose-900/70 text-rose-200 font-cinzel font-bold text-xs p-2.5 rounded-xl border border-rose-500/50 transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
+                  >
+                    <span className="text-sm">↩</span>
+                    <span>4. ROLLBACK</span>
+                  </button>
+                </div>
+
+                {/* Live Alert Box for T2 */}
+                {dualT2.alert && (
+                  <div className={`p-3 rounded-xl border text-xs leading-relaxed mb-4 flex items-start gap-2 ${dualT2.alertType === 'error' ? 'bg-rose-950/70 border-rose-600/70 text-rose-200' : dualT2.alertType === 'warning' ? 'bg-amber-950/70 border-amber-600/70 text-amber-200' : 'bg-[#181410] border-[#8E1E24]/50 text-[#F28B82]'}`}>
+                    <span className="text-base flex-shrink-0">
+                      {dualT2.alertType === 'error' ? '❌' : dualT2.alertType === 'warning' ? '⚠️' : 'ℹ️'}
+                    </span>
+                    <div>{dualT2.alert}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* T-SQL Console Logs */}
+              <div className="bg-[#070605] p-3 rounded-xl border border-[#3A3026]">
+                <div className="text-[10px] font-mono text-[#8B7C6E] uppercase mb-1 flex items-center justify-between">
+                  <span>💻 CONSOLE T-SQL (SESSION 53)</span>
+                  <span className="text-[#F28B82]">T2 LOGS</span>
+                </div>
+                <div className="font-mono text-[11px] text-[#A8998A] space-y-1 max-h-24 overflow-y-auto pr-1">
+                  {dualT2.logs.map((log, i) => (
+                    <div key={i} className={log.includes('BLOCKED') ? 'text-amber-400 font-bold' : log.includes('COMMIT') ? 'text-emerald-400' : log.includes('ROLLBACK') ? 'text-rose-400' : 'text-[#D5C5B5]'}>
+                      &gt; {log}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* BOTTOM: LIVE TRANSACTION TIMELINE STREAM & ACADEMIC EXPLANATION */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Timeline Stream */}
+            <div className="lg:col-span-7 glass-panel p-6 rounded-2xl border border-[#D4AF37]/20">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#D4AF37]/15">
+                <h4 className="font-cinzel font-bold text-sm text-[#F6ECE1] flex items-center gap-2">
+                  <span>📜</span> LIVE TRANSACTION TIMELINE STREAM (NHẬT KÝ 2 PHIÊN)
+                </h4>
+                <span className="text-[10px] font-mono text-[#D4AF37] bg-[#14100D] px-2 py-0.5 rounded border border-[#D4AF37]/30">
+                  REAL-TIME
+                </span>
+              </div>
+
+              <div className="space-y-2 max-h-64 overflow-y-auto font-mono text-xs pr-1">
+                {dualTimeline.map((item, idx) => {
+                  const isT1 = item.source === 'T1';
+                  const isT2 = item.source === 'T2';
+                  const isEngine = item.source === 'SQL_ENGINE';
+                  return (
+                    <div key={idx} className="flex items-start gap-2.5 p-2 rounded-lg bg-[#0E0C0A] border border-[#26201A]">
+                      <span className="text-[10px] text-[#8B7C6E] flex-shrink-0 mt-0.5">{item.time}</span>
+                      <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold flex-shrink-0 ${isT1 ? 'bg-[#3D2510] text-[#E5A84B] border border-[#E5A84B]/40' : isT2 ? 'bg-[#4A1215] text-[#F28B82] border border-[#8E1E24]' : isEngine ? 'bg-purple-950/80 text-purple-300 border border-purple-500/50' : 'bg-[#1C1713] text-[#A8998A]'}`}>
+                        {item.source}
+                      </span>
+                      <span className="text-[#D5C5B5] leading-relaxed">{item.text}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Academic Explainer Box */}
+            <div className="lg:col-span-5 glass-panel p-6 rounded-2xl border border-[#D4AF37]/20 flex flex-col justify-between">
+              <div>
+                <div className="text-[11px] font-mono font-bold text-[#D4AF37] mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>💡</span> BÍ KÍP BẢO VỆ ĐỒ ÁN TRƯỚC GIẢNG VIÊN:
+                </div>
+                <h4 className="font-cinzel font-black text-base text-[#F6ECE1] mb-3">
+                  Cơ Chế Khóa Của SQL Server Xử Lý Tình Huống Này Thế Nào?
+                </h4>
+                <div className="space-y-3 text-xs text-[#D5C5B5] leading-relaxed">
+                  <div className="p-3 bg-[#14100D] rounded-xl border border-[#3A3026]">
+                    <strong className="text-[#E5A84B] block mb-1">1. Khi chưa sửa (Lost Update / Dirty Read):</strong>
+                    Các câu lệnh SELECT chỉ xin S-Lock đọc xong nhả ngay ở READ COMMITTED, hoặc dùng NOLOCK. T2 có thể chen ngang đọc/ghi đè lên dữ liệu dở dang của T1.
+                  </div>
+                  <div className="p-3 bg-[#14100D] rounded-xl border border-emerald-900/40">
+                    <strong className="text-emerald-400 block mb-1">2. Khi đã sửa (UPDLOCK / REPEATABLE READ):</strong>
+                    T1 gắn khóa độc quyền UPDLOCK trên dòng ghế. Khi T2 muốn xin khóa để mua ghế, SQL Server phát hiện xung đột và bắt T2 vào hàng đợi <code className="text-amber-300 font-mono">BLOCKED</code> cho đến khi T1 Commit/Rollback!
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-[#D4AF37]/15 flex items-center justify-between text-[11px] font-mono text-[#A8998A]">
+                <span>Chuẩn ANSI SQL-92</span>
+                <span className="text-[#D4AF37]">Môn: HQTCSDL</span>
               </div>
             </div>
           </div>
